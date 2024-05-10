@@ -23,9 +23,9 @@ def recommend_dish():
         essentials = [essential.lower() for essential in data.get("essentials", [])]
 
         df1=pd.read_csv("cleaned_file-1.csv",index_col="index")
-        df2=pd.read_csv("cleaned_file-2.csv",index_col="index")
+        # df2=pd.read_csv("cleaned_file-2.csv",index_col="index")
         df3=pd.read_csv("cleaned_file-3.csv",index_col="index")
-        df=pd.concat([df1,df2,df3])
+        df=pd.concat([df1,df3])
         result = filter_ingredients(df.copy(), essentials)
 
         tfidf_vectorizer2=TfidfVectorizer(stop_words='english')
