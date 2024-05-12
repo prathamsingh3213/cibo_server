@@ -3,23 +3,34 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import joblib
+import dask.dataframe as dd  
 
-# Load the original DataFrame and models (adjust paths if needed)
-df = pd.read_csv("cleaned_file.csv")  
+# Load data lazily using Dask (updated)
+ddf = dd.concat([
+    dd.read_csv(f"cleaned_file-{i}.csv", dtype={'index': 'float64'}).set_index('index') 
+    for i in range(1, 4)
+])
+
+# Compute and load the entire DataFrame into memory
+df = ddf.compute()
+
+# Load the TF-IDF vectorizer
 tfidf_vectorizer = joblib.load('tfidf_vectorizer.joblib')
-tfidf_matrix = joblib.load('tfidf_matrix.joblib')
+
+# Calculate the TF-IDF matrix (do this only once)
+tfidf_matrix = tfidf_vectorizer.transform(df['ingredients']) 
 
 def dish_recommender(ingrd_str):
     try:
         # Convert string input to list of ingredients
         ingredients = ingrd_str.strip('[]').replace("'", "").split(',')  
-        
+
         user_tfidf = tfidf_vectorizer.transform([' '.join(ingredients)])
         similarities = cosine_similarity(user_tfidf, tfidf_matrix)
 
         # Get top 5 similar recipe indices
         top_indices = similarities[0].argsort()[-5:][::-1]  
-        
+
         # Fetch recommendations from the DataFrame
         recommendations = df.iloc[top_indices].to_json(orient='records')
         return recommendations
@@ -30,8 +41,3 @@ def dish_recommender(ingrd_str):
     except Exception as e:
         # Handle other unexpected errors
         return jsonify({"error": str(e)}), 500
-
-# Uncomment this if you're running clean.py separately to test:
-# if __name__ == "__main__":
-#    ingredients_input = input("Enter ingredients (comma-separated): ")
-#    dish_recommender(ingredients_input)
