@@ -29,7 +29,7 @@ def dish_recommender(ingrd_str):
         similarities = cosine_similarity(user_tfidf, tfidf_matrix)
 
         # Get top 5 similar recipe indices
-        top_indices = similarities[0].argsort()[-5:][::-1]  
+        top_indices = similarities[0].argsort()[-8:][::-1]  
 
         # Fetch recommendations from the DataFrame
         recommendations = df.iloc[top_indices].to_json(orient='records')

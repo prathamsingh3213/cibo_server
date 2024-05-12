@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 from flask import Flask, request, jsonify
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -6,7 +7,6 @@ from joblib import load
 import dask.dataframe as dd
 from flask_caching import Cache
 from clean import dish_recommender  
-import pandas as pd
 
 app = Flask(__name__)
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
@@ -18,7 +18,8 @@ ddf = dd.concat([
     for i in range(1, 4)
 ])
 
-@app.route('/', methods=['POST'])
+# Updated route to /recommend
+@app.route('/recommend', methods=['POST'])
 def recommend():
     try:
         data = request.get_json()
@@ -35,16 +36,6 @@ def recommend():
             else:
                 return jsonify(recommendations)
 
-        elif 'recipe_name' in data:
-            # Recipe name-based recommendation
-            recipe_name_query = data['recipe_name'].lower()
-            matching_recipes = ddf[ddf['name'].str.lower().str.contains(recipe_name_query)].compute()
-
-            if not matching_recipes.empty:
-                return matching_recipes.iloc[0].to_json()
-            else:
-                return jsonify({'error': 'No matching recipes found'}), 404
-
         else:
             return jsonify({'error': 'Invalid request data'}), 400
 
@@ -59,4 +50,4 @@ def recommend():
         return jsonify({'error': 'Internal Server Error'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0")
+    app.run(debug=True, host="0.0.0.0") 
