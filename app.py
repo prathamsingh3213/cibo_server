@@ -6,7 +6,7 @@ import pandas as pd
 
 app = Flask(__name__)
 
- Load the pre-trained model
+ #Load the pre-trained model
  tfidf_vectorizer = load('tfidf_vectorizer.joblib')
  tfidf_matrix = load('tfidf_matrix.joblib')
 
