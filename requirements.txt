@@ -1,7 +1,5 @@
 Flask
 scikit-learn
-pandas
-dask[dataframe]  
-flask-caching
 joblib
-gunicorn
+pandas
+numpy
