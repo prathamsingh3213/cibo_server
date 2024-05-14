@@ -6,9 +6,9 @@ import pandas as pd
 
 app = Flask(__name__)
 
-# Load the pre-trained model
-# tfidf_vectorizer = load('tfidf_vectorizer.joblib')
-# tfidf_matrix = load('tfidf_matrix.joblib')
+ Load the pre-trained model
+ tfidf_vectorizer = load('tfidf_vectorizer.joblib')
+ tfidf_matrix = load('tfidf_matrix.joblib')
 
 @app.route('/recommend', methods=['POST'])
 def recommend_dish():
