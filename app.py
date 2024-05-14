@@ -1,53 +1,45 @@
-import os
-import pandas as pd
 from flask import Flask, request, jsonify
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from joblib import load
-import dask.dataframe as dd
-from flask_caching import Cache
-from clean import dish_recommender  
+import pandas as pd
 
 app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+
+# Load pre-trained models
 tfidf_vectorizer = load('tfidf_vectorizer.joblib')
+tfidf_matrix = load('tfidf_matrix.joblib')
+df = pd.concat([pd.read_csv(f"cleaned_file-{i}.csv.gz", index_col="index") for i in range(1, 4)])  # Load all DataFrames
 
-# Load data lazily using Dask (updated with dtype specification)
-ddf = dd.concat([
-    dd.read_csv(f"cleaned_file-{i}.csv", dtype={'index': 'float64'}).set_index('index') 
-    for i in range(1, 4)
-])
-
-# Updated route to /recommend
 @app.route('/recommend', methods=['POST'])
-def recommend():
+def recommend_dish():
     try:
         data = request.get_json()
+        user_ingredients = data['ingredients'].lower().split(',')
+        essentials = [ess.lower() for ess in data.get("essentials", [])]
 
-        if 'ingredients' in data:
-            # Ingredient-based recommendation (using your dish_recommender function)
-            user_ingredients = data['ingredients']
-            if not isinstance(user_ingredients, str):
-                return jsonify({'error': 'Invalid ingredients format'}), 400
+        # Filter by essentials 
+        filtered_df = df[df['ingredients'].apply(lambda x: all(ess in x for ess in essentials))]
 
-            recommendations = dish_recommender(user_ingredients)  
-            if isinstance(recommendations, str):
-                return recommendations   # If it's already a JSON string, return as is
-            else:
-                return jsonify(recommendations)
-
+        # If no essentials, use the pre-trained model
+        if not essentials:
+            tfidf_vectorizer_to_use = tfidf_vectorizer
+            tfidf_matrix_to_use = tfidf_matrix
         else:
-            return jsonify({'error': 'Invalid request data'}), 400
+            # Re-train vectorizer only on filtered data if essentials provided
+            tfidf_vectorizer_to_use = TfidfVectorizer(stop_words='english') 
+            tfidf_matrix_to_use = tfidf_vectorizer_to_use.fit_transform(filtered_df['ingredients'])
 
-    except KeyError as e:
-        app.logger.error(f"Missing key in request data: {e}")
-        return jsonify({'error': 'Missing required fields'}), 400
-    except pd.errors.EmptyDataError as e:
-        app.logger.error(f"No data found: {e}")
-        return jsonify({'error': 'No matching recipes found'}), 404
+        user_tfidf = tfidf_vectorizer_to_use.transform([','.join(user_ingredients)])
+        similarities = cosine_similarity(user_tfidf, tfidf_matrix_to_use)
+        top_indices = similarities[0].argsort()[-8:][::-1] 
+
+        recommendations = filtered_df.iloc[top_indices].to_json(orient='records')
+        return recommendations
+    
     except Exception as e:
-        app.logger.error(f"Error recommending dishes/recipes: {e}")
+        app.logger.error(f"Error recommending dishes: {e}") 
         return jsonify({'error': 'Internal Server Error'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0") 
+    app.run(debug=True, host="0.0.0.0")
